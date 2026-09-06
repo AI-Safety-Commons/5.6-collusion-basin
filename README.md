@@ -10,7 +10,7 @@ The implemented component generates messages only. Separate infrastructure handl
 
 See [setup and usage](docs/message-generation.md) and the [Luka thread / DseWiki context review](docs/context-review.md). The initial research proposal above and in `FULL_INITIAL_PLAN_DRAFT.md` describes a broader experiment; that infrastructure is not implemented here.
 
-Already configured locally (no API key needed):
+Config'd on cali's device right now, will consider moving implementation to cloud workspace once resources become available:
 
 ```sh
 source .venv/bin/activate
