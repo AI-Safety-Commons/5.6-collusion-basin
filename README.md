@@ -1,6 +1,6 @@
 # 5.6-collusion-basin
 
-WIP - Data generation implemented at this point, still need system to take the data generated and create/set up environment with it.
+See TODO
 
 "In the right basin, GPT 5.6 Sol was capable of collusion with HPIM. This is interesting because this is a model that we know we have access to which is willing to collude."
 
