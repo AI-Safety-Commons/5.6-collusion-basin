@@ -36,7 +36,7 @@ wiki-synth generate --provider acs --config configs/dse-405b.json --out runs/dse
 wiki-synth generate --provider acs --config configs/dse-trinity.json --out runs/dse-trinity-v2
 ```
 
-The configs request three `llama-8b` samples, one `llama-405b` sample and one `trinity-truebase` sample, respectively. Check `models` for availability under your account before running the larger models. All use the same three extracted posts, temperature 0.8, top_p 0.95 and a 256-token output ceiling per sample. The first sample of each model uses seed 42; the additional 8B samples use 43 and 44. Seeds do not make different models equivalent, but the input text is identical.
+The configs request three `llama-8b` samples, three `llama-405b` samples and one `trinity-truebase` sample, respectively. Check `models` for availability under your account before running the larger models. All use the same three extracted posts, temperature 0.8, top_p 0.95 and a 256-token output ceiling per sample. The first sample of each model uses seed 42; the additional 8B and 405B samples use 43 and 44. Seeds do not make different models equivalent, but the input text is identical.
 
 Input tokens also consume budget. `max_output_tokens_total` limits requested output per run, not total billing. `max_prompt_bytes` is a size guard, not a tokenizer count. The client allows a 960-second read timeout for cold starts.
 

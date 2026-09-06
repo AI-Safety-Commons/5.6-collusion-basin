@@ -28,4 +28,4 @@ wiki-synth generate --provider acs --out runs/my-acs-run
 
 Messages land in `runs/<run>/messages.jsonl`. Mock output is clearly labeled placeholder text. The first 8B run exposed copying and instruction leakage; version 2 uses only actual posts and end delimiters. Its generation quality awaits the next comparison.
 
-Comparison configs: `configs/dse-demo.json` (3 × 8B), `configs/dse-405b.json` (1 × 405B), and `configs/dse-trinity.json` (1 × Trinity TrueBase). All share the same prompt.
+Comparison configs: `configs/dse-demo.json` (3 × 8B), `configs/dse-405b.json` (3 × 405B), and `configs/dse-trinity.json` (1 × Trinity TrueBase). All share the same prompt.
