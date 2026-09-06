@@ -150,4 +150,4 @@ for line in Path("data/corpus/prowiki/revisions.jsonl").open():
 PYTHON
 ```
 
-The older `dse-demo`, `dse-405b`, `dse-trinity`, and topic configs remain comparison fixtures; use `dse-baseline.json` for the accepted setup. See [detailed usage](docs/message-generation.md), [source context](docs/context-review.md), and [baseline experiment results](docs/context-followup.md).
+The older `dse-demo`, `dse-405b`, `dse-trinity`, and topic configs remain comparison fixtures; use `dse-baseline.json` for the accepted setup. See [detailed usage](docs/message-generation.md), [source context](docs/context-review.md), and [baseline experiment results](experiments/notes/context-followup.md).

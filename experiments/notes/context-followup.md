@@ -1,5 +1,7 @@
 # Extra context and start-marker follow-up
 
+> Historical experiment record. Referenced run directories are not included in the repository; see the [notes index](README.md).
+
 Seven 405B continuations on the same police-wage discussion:
 
 | Run | Context | Seeds |

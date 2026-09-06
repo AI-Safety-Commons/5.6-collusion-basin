@@ -1,5 +1,7 @@
 # 405B prompt study — 6 September 2026
 
+> Historical experiment record. Referenced run directories are not included in the repository; see the [notes index](README.md).
+
 ## Protocol
 
 Five outputs authorized and requested: one control and four single-change variants. All use the same police-wage discussion, seed 43, top_p 0.95, raw completions, and a 256-token output ceiling. The source was selected because its previous seed-43 output copied the latest source post. This is a deliberately difficult case, not a representative benchmark.
