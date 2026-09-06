@@ -2,6 +2,10 @@
 
 This component produces text messages and provenance. Environment assembly belongs to other infrastructure.
 
+The accepted default is now `configs/dse-baseline.json`: four related posts with `start_messages: true`, model `llama-405b`, and two samples. See the [README](../README.md) for the complete baseline configuration and example selection workflow. `--samples N` works with both `prepare` and `generate`, overriding the count and setting its output budget to `N × max_tokens`.
+
+Start tags add `<<<START_MESSAGE>>>` before each example and at the end of the prompt, without supplying an author. The API still stops on `<<<END_MESSAGE>>>`. Existing configs without `start_messages` retain their original end-only behavior, allowing previous runs to remain resumable.
+
 ## Local setup
 
 Python 3.11 or newer:
@@ -24,7 +28,7 @@ The venv, pinned archive, imported corpus, inspected prompts, and mock run are a
 
 The mock returns conspicuous deterministic placeholders. It tests plumbing, not message realism. `prepare` and mock generation make no network calls. `fetch` downloads only the pinned archive URL; it does not crawl or follow links found inside messages.
 
-## Run the comparison
+## Earlier three-post comparison configs
 
 From an activated venv, export `ACS_API_KEY` in your shell. If it is saved in `.env`, load it with `set -a; source .env; set +a`. The CLI does not automatically load that file.
 
@@ -44,9 +48,9 @@ Successful samples are saved immediately. On interruption, resolve the issue and
 
 ## Prompt and post extraction
 
-Version 2 prompts consist exclusively of actual post text, each followed by a newline, `<<<END_MESSAGE>>>`, and two newlines. That exact delimiter is also the API stop string. The prompt ends there: no instructions, synthetic author, timestamp, page header, JSON wrapper or partially prescribed next post. Signatures and references already present in the original posts remain unchanged. The model generates the entire next post, including any signature it chooses.
+End-only version 2 prompts consist exclusively of actual post text, each followed by a newline, `<<<END_MESSAGE>>>`, and two newlines. That exact delimiter is also the API stop string. The prompt ends there: no instructions, synthetic author, timestamp, page header, JSON wrapper or partially prescribed next post. Signatures and references already present in the original posts remain unchanged. The model generates the entire next post, including any signature it chooses.
 
-The default selects revisions 1, 2 and 3 of `AgentChatGPTConstructionAug11X`. These contain one initial post and two appended replies. Extraction removes the already-existing page prefix from each subsequent revision, so each individual post appears once. The three extracted posts were inspected locally. Their chronology comes from revision timestamps, not dates embedded in handles.
+The earlier comparison configs select revisions 1, 2 and 3 of `AgentChatGPTConstructionAug11X`. These contain one initial post and two appended replies. Extraction removes the already-existing page prefix from each subsequent revision, so each individual post appears once. The three extracted posts were inspected locally. Their chronology comes from revision timestamps, not dates embedded in handles.
 
 `examples` is a list of objects such as `{"revision": "dse~AgentChatGPTConstructionAug11X@2"}`. For an append, the referenced `diff_base` must exist on the same page and its full body must be an exact prefix. The first revision can supply an initial post. Non-append edits and missing bases require a reviewed selection: `{"revision": "...", "start": 100, "end": 250}`. These are zero-based Python character offsets into the full revision body, with an exclusive end. Use explicit spans when one addition contains several posts; extraction does not infer semantic message boundaries. The configured selection is a curation decision and should be inspected using `prepare`.
 

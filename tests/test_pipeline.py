@@ -53,6 +53,23 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(plan["jobs"][0]["request"]["prompt"], plan["jobs"][1]["request"]["prompt"])
         self.assertNotIn("author", plan["jobs"][0])
 
+    def test_start_markers_and_sample_override(self):
+        self.config["start_messages"] = True
+        plan = self.plan()
+        prompt = plan["jobs"][0]["request"]["prompt"]
+        self.assertEqual(prompt.count("<<<START_MESSAGE>>>"), 3)
+        self.assertTrue(prompt.endswith("<<<START_MESSAGE>>>\n"))
+        self.assertEqual(plan["jobs"][0]["request"]["stop"], [END_MESSAGE])
+        expanded = prepare(self.corpus, self.config_path, samples=7)
+        self.assertEqual(len(expanded["jobs"]), 7)
+        self.assertEqual(expanded["output_token_ceiling"], 7 * 64)
+        self.assertEqual([j["request"]["seed"] for j in expanded["jobs"]], list(range(42, 49)))
+        with self.assertRaises(ValueError):
+            prepare(self.corpus, self.config_path, samples=0)
+        self.config["start_messages"] = "true"
+        with self.assertRaisesRegex(ValueError, "boolean"):
+            self.plan()
+
     def test_null_body_is_not_a_seed(self):
         rows = copy.deepcopy(self.rows)
         rows[0]["body"] = None

@@ -1,6 +1,7 @@
 """Extract reviewed individual posts without repeating cumulative page text."""
 from .corpus import digest, timestamp
 
+START_MESSAGE = "<<<START_MESSAGE>>>"
 END_MESSAGE = "<<<END_MESSAGE>>>"
 STUBS = {"created", "Beschreibe hier die neue Seite."}
 
@@ -52,7 +53,7 @@ def extract_posts(rows, selections):
         while end > start and body[end - 1].isspace():
             end -= 1
         text = body[start:end]
-        if not text or text in STUBS or END_MESSAGE in text:
+        if not text or text in STUBS or END_MESSAGE in text or START_MESSAGE in text:
             raise ValueError(f"Empty, stub, or delimiter-containing post: {revision}")
         key = (revision, start, end)
         if key in seen:
@@ -65,6 +66,7 @@ def extract_posts(rows, selections):
     return posts
 
 
-def render_prompt(posts):
+def render_prompt(posts, start_messages=False):
     """Only actual post text, delimiters and whitespace enter the model prompt."""
-    return "".join(post["text"] + "\n" + END_MESSAGE + "\n\n" for post in posts)
+    start = START_MESSAGE + "\n" if start_messages else ""
+    return "".join(start + post["text"] + "\n" + END_MESSAGE + "\n\n" for post in posts) + start

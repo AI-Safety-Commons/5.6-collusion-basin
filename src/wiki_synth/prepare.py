@@ -12,12 +12,18 @@ def integer(config, name, minimum, maximum):
     return value
 
 
-def prepare(corpus, config_path):
+def prepare(corpus, config_path, samples=None):
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
     allowed = {"schema_version", "model", "seed", "samples", "max_tokens", "temperature", "top_p",
                "max_output_tokens_total", "max_prompt_bytes", "examples"}
-    if set(config) != allowed or config["schema_version"] != 2:
+    if not allowed <= set(config) or set(config) - allowed - {"start_messages"} or config["schema_version"] != 2:
         raise ValueError("Config fields must match the version 2 example exactly; gap/retrospective configs are no longer supported")
+    if type(config.get("start_messages", False)) is not bool:
+        raise ValueError("start_messages must be a boolean")
+    if samples is not None:
+        integer({"samples": samples}, "samples", 1, 10000)
+        config["samples"] = samples
+        config["max_output_tokens_total"] = samples * integer(config, "max_tokens", 1, 32000)
     n = integer(config, "samples", 1, 10000)
     max_tokens = integer(config, "max_tokens", 1, 32000)
     integer(config, "seed", 0, 2**31 - 10001)
@@ -33,7 +39,7 @@ def prepare(corpus, config_path):
         raise ValueError("model must be a nonempty short API model ID")
     rows, manifest = load_corpus(corpus)
     posts = extract_posts(rows, config["examples"])
-    prompt = render_prompt(posts)
+    prompt = render_prompt(posts, start_messages=config.get("start_messages", False))
     if len(prompt.encode()) > config["max_prompt_bytes"]:
         raise ValueError("Prompt exceeds max_prompt_bytes; select fewer/shorter posts")
     source_ids = list(dict.fromkeys(post["revision"] for post in posts))

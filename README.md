@@ -9,23 +9,145 @@ Use base models from [Arcee](https://www.arcee.ai/research) (and other labs if m
 
 ## Local message generation
 
-The implemented component generates messages only. Separate infrastructure handles assembling the environment. It imports a pinned archive of DseWiki source revisions, builds raw completion prompts from chronological individual posts, and writes synthetic messages with provenance to JSONL.
+Current baseline: **Llama 405B, extra related context, and start/end message tags**, as tested in `context-followup-extra-start`. The tool generates independent alternative posts; sandbox and harness work is tracked in [TODO.md](TODO.md).
 
-See [setup and usage](docs/message-generation.md) and the [Luka thread / DseWiki context review](docs/context-review.md). The initial research proposal above and in `FULL_INITIAL_PLAN_DRAFT.md` describes a broader experiment; that infrastructure is not implemented here.
+The prompt contains only actual individual posts in chronological order, with this structure (bracketed text here is illustrative):
+
+```text
+<<<START_MESSAGE>>>
+[actual earlier post, including its original signature]
+<<<END_MESSAGE>>>
+
+<<<START_MESSAGE>>>
+[actual later post]
+<<<END_MESSAGE>>>
+
+<<<START_MESSAGE>>>
+```
+
+The model writes the entire next post, with no predetermined author. `<<<END_MESSAGE>>>` stops generation. Provenance and synthetic labels are stored outside the prompt. Plausible invented updates are expected; copying and consistency still need review.
+
+### Setup
+
+Python 3.11+:
 
 ```sh
+python3 -m venv .venv
 source .venv/bin/activate
-wiki-synth prepare --out runs/my-prompts
-wiki-synth generate --provider mock --out runs/my-mock
+python -m pip install -r requirements.lock
+python -m pip install --no-deps -e .
+wiki-synth fetch
+wiki-synth import data/raw/prowiki-revisions.jsonl \
+  --out data/corpus/prowiki \
+  --source-url https://github.com/JoshuaDavid/WikiAgentSwarmInvestigation/tree/774ea465e2957a5e3581a47a8cdb0f8e2395bea2/agent-logs/prowiki
 ```
 
-Once `ACS_API_KEY` is exported:
+Skip fetch/import if the verified local corpus is already present. Configure `ACS_API_KEY` in your shell, or load your local `.env`:
 
 ```sh
-wiki-synth models
-wiki-synth generate --provider acs --out runs/my-acs-run
+set -a
+source .env
+set +a
 ```
 
-Messages land in `runs/<run>/messages.jsonl`. Mock output is clearly labeled placeholder text. The first 8B run exposed copying and instruction leakage; version 2 uses only actual posts and end delimiters. Its generation quality awaits the next comparison.
+### Preview and generate any output count
 
-Comparison configs: `configs/dse-demo.json` (3 × 8B), `configs/dse-405b.json` (3 × 405B), and `configs/dse-trinity.json` (1 × Trinity TrueBase). All share the same prompt.
+`configs/dse-baseline.json` is the default. It uses four related police-wage posts and requests two outputs at temperature 0.8, top_p 0.95, and up to 256 output tokens each.
+
+```sh
+# Inspect exactly what will be sent; no model calls
+wiki-synth prepare --samples 10 --out runs/baseline-ten-prompts
+
+# Optional offline plumbing check; conspicuous placeholder outputs
+wiki-synth generate --provider mock --samples 10 --out runs/baseline-ten-mock
+
+# Generate ten independent 405B outputs
+wiki-synth generate --provider acs --samples 10 --out runs/baseline-ten
+
+# Inspect saved runs in the local viewer
+wiki-synth view
+```
+
+Open http://127.0.0.1:8765 and refresh after generation. Messages are saved to `runs/<run>/messages.jsonl`; per-sample files retain raw provider responses, and `run.json` retains exact prompts and settings.
+
+Replace `10` with your desired count (1–10,000 per run). `--samples N` overrides both the config's sample count and its output budget, setting the latter to `N × max_tokens`. Each request uses one output and an incrementing seed. Prompt tokens also consume your ACS budget. All outputs see the same source prompt, not one another.
+
+Use a fresh output directory for each new experiment. To resume an interrupted run, repeat the **same config, count and command** with `--resume`; saved samples are skipped. Cold starts can take ten minutes: let the original request finish rather than issue a duplicate. The client does not automatically retry failed calls.
+
+### Configure specific related examples
+
+Copy `configs/dse-baseline.json` to a new config. Its current contents are:
+
+```json
+{
+  "schema_version": 2,
+  "model": "llama-405b",
+  "seed": 42,
+  "samples": 2,
+  "max_tokens": 256,
+  "temperature": 0.8,
+  "top_p": 0.95,
+  "max_output_tokens_total": 512,
+  "max_prompt_bytes": 24000,
+  "examples": [
+    {
+      "revision": "dse~AgentDec22PoliceCoord@1",
+      "start": 0,
+      "end": 228
+    },
+    {
+      "revision": "dse~AgentDec22PoliceCoord@1",
+      "start": 230,
+      "end": 394
+    },
+    {
+      "revision": "dse~AgentDec22PoliceCoord@2"
+    },
+    {
+      "revision": "dse~AgentDec22PoliceCoord@3"
+    }
+  ],
+  "start_messages": true
+}
+```
+
+- `examples` selects exactly which preserved posts enter the prompt. Choose a coherent discussion, adding relevant earlier posts for context; more unrelated text is not automatically helpful.
+- `revision` identifies an archived page revision. For append-only revisions, the tool extracts only the newly added text using `diff_base`. Review each selection: an addition can itself contain several posts.
+- Optional `start`/`end` select one post from a larger revision body. These are zero-based **character offsets**, with an exclusive end. The baseline splits two separate posts from the first police revision this way.
+- Posts are sorted by archive time. At least two usable posts are required; the accepted baseline has four. Signatures remain part of the original text.
+- `start_messages: true` enables the accepted start-tag format. Omitting it or setting it to `false` retains the older end-only format for comparison.
+- Set `samples` and `max_output_tokens_total` in the config, or use `--samples` as above. Without an override, the budget must be at least `samples × max_tokens`.
+
+For example, replace `examples` with these three related language-discussion posts:
+
+```json
+"examples": [
+  {"revision": "dse~AgentLanguageSequenceOurJul17@1"},
+  {"revision": "dse~AgentLanguageSequenceOurJul17@2"},
+  {"revision": "dse~AgentLanguageSequenceOurJul17@3"}
+]
+```
+
+Then preview and run your config:
+
+```sh
+wiki-synth prepare --config configs/my-discussion.json --samples 6 --out runs/my-discussion-prompts
+wiki-synth generate --provider acs --config configs/my-discussion.json --samples 6 --out runs/my-discussion
+```
+
+To inspect available revisions on a page before choosing examples:
+
+```sh
+python - <<'PYTHON'
+import json
+from pathlib import Path
+page = "AgentLanguageSequenceOurJul17"
+for line in Path("data/corpus/prowiki/revisions.jsonl").open():
+    row = json.loads(line)
+    if row["wiki"] == "dse" and row["name"] == page:
+        print(row["rev_id"], row["time"], "base:", row.get("diff_base"))
+        print(row.get("body"), "\n")
+PYTHON
+```
+
+The older `dse-demo`, `dse-405b`, `dse-trinity`, and topic configs remain comparison fixtures; use `dse-baseline.json` for the accepted setup. See [detailed usage](docs/message-generation.md), [source context](docs/context-review.md), and [baseline experiment results](docs/context-followup.md).

@@ -46,8 +46,9 @@ def main():
     for name in ("prepare", "generate"):
         p = sub.add_parser(name)
         p.add_argument("--corpus", default="data/corpus/prowiki")
-        p.add_argument("--config", default="configs/dse-demo.json")
+        p.add_argument("--config", default="configs/dse-baseline.json")
         p.add_argument("--out", required=True)
+        p.add_argument("--samples", type=int, help="Override output count and set output budget to count × max_tokens")
         if name == "generate":
             p.add_argument("--provider", choices=["mock", "acs"], default="mock")
             p.add_argument("--resume", action="store_true")
@@ -68,7 +69,7 @@ def main():
         elif args.command == "models":
             result = request_json("GET", "/models")
         else:
-            plan = prepare(args.corpus, args.config)
+            plan = prepare(args.corpus, args.config, samples=args.samples)
             if args.command == "prepare":
                 output = Path(args.out)
                 if output.exists():
