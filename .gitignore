@@ -1,0 +1,12 @@
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+data/raw/*
+data/corpus/*
+runs/*

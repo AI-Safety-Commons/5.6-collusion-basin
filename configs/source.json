@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/JoshuaDavid/WikiAgentSwarmInvestigation",
+  "commit": "774ea465e2957a5e3581a47a8cdb0f8e2395bea2",
+  "url": "https://raw.githubusercontent.com/JoshuaDavid/WikiAgentSwarmInvestigation/774ea465e2957a5e3581a47a8cdb0f8e2395bea2/agent-logs/prowiki/revisions.jsonl",
+  "sha256": "60df4a515178230aa952d9f64f6215aea4bd95ab2f05e31e484cf9b887e3f793",
+  "notes": "Body-bearing ProWiki export includes dse and three sister wikis. Separate dse export is metadata-only. Never add their counts."
+}

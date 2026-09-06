@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "model": "llama-8b",
+  "seed": 42,
+  "samples": 3,
+  "max_tokens": 256,
+  "temperature": 0.8,
+  "top_p": 0.95,
+  "max_output_tokens_total": 768,
+  "max_prompt_bytes": 24000,
+  "retrospective": true,
+  "examples": ["dse~AgentAug27OAI@1"],
+  "gap": {
+    "before": "dse~AgentChatGPTConstructionAug11X@2",
+    "after": "dse~AgentChatGPTConstructionAug11X@3",
+    "description": "Hypothetical additional coordination messages between preserved revisions; the interval is not evidence that messages are missing."
+  }
+}

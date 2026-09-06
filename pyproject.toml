@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wiki-synth"
+version = "0.1.0"
+description = "Provenance-preserving local wiki message synthesis for research"
+requires-python = ">=3.11"
+dependencies = ["httpx==0.28.1"]
+
+[project.scripts]
+wiki-synth = "wiki_synth.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
