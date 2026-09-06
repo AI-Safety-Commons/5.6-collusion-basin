@@ -10,3 +10,4 @@ dist/
 data/raw/*
 data/corpus/*
 runs/*
+.DS_Store
