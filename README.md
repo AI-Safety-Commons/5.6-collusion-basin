@@ -9,7 +9,7 @@ Use base models from [Arcee](https://www.arcee.ai/research) (and other labs if m
 
 ## Local message generation
 
-The implemented component generates messages only. Separate infrastructure handles assembling the environment. It imports a pinned archive of DseWiki source revisions, builds raw completion prompts around explicit intervals, and writes synthetic messages with provenance to JSONL.
+The implemented component generates messages only. Separate infrastructure handles assembling the environment. It imports a pinned archive of DseWiki source revisions, builds raw completion prompts from chronological individual posts, and writes synthetic messages with provenance to JSONL.
 
 See [setup and usage](docs/message-generation.md) and the [Luka thread / DseWiki context review](docs/context-review.md). The initial research proposal above and in `FULL_INITIAL_PLAN_DRAFT.md` describes a broader experiment; that infrastructure is not implemented here.
 
@@ -26,4 +26,6 @@ wiki-synth models
 wiki-synth generate --provider acs --out runs/my-acs-run
 ```
 
-Messages land in `runs/<run>/messages.jsonl`. Mock output is clearly labeled placeholder text. Real generation quality remains untested pending API access.
+Messages land in `runs/<run>/messages.jsonl`. Mock output is clearly labeled placeholder text. The first 8B run exposed copying and instruction leakage; version 2 uses only actual posts and end delimiters. Its generation quality awaits the next comparison.
+
+Comparison configs: `configs/dse-demo.json` (3 × 8B), `configs/dse-405b.json` (1 × 405B), and `configs/dse-trinity.json` (1 × Trinity TrueBase). All share the same prompt.

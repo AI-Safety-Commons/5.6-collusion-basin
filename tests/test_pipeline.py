@@ -9,7 +9,9 @@ from unittest.mock import patch
 import httpx
 from wiki_synth.corpus import digest, import_corpus, load_corpus, write_json
 from wiki_synth.prepare import prepare
-from wiki_synth.cli import run
+from wiki_synth.generation import run
+from wiki_synth.posts import END_MESSAGE, extract_posts
+from wiki_synth.results import make_result
 from wiki_synth.provider import complete, ProviderError
 
 
@@ -24,14 +26,16 @@ class PipelineTests(unittest.TestCase):
             body = "Preserved note.\n" + ("An observed reply.\n" if i else "")
             self.rows.append({"rev_id": f"dse~Test@{i+1}", "page_id": "dse/Test", "name": "Test",
                               "wiki": "dse", "time": time, "label": "HistoricalAgent",
+                              "seq": i+1, "diff_base": "dse~Test@1" if i else None,
                               "body": body, "body_sha256": digest(body.encode()), "body_encoding": "ascii"})
         self.source.write_text("".join(json.dumps(x) + "\n" for x in self.rows))
         self.corpus = self.root / "corpus"
         import_corpus(self.source, self.corpus, "https://example.org/archive")
-        self.config = {"schema_version": 1, "model": "llama-8b", "seed": 42, "samples": 2,
+        self.config = {"schema_version": 2, "model": "llama-8b", "seed": 42, "samples": 2,
                        "max_tokens": 64, "temperature": 0.8, "top_p": 0.95, "max_output_tokens_total": 128,
-                       "max_prompt_bytes": 10000, "retrospective": True, "examples": [],
-                       "gap": {"before": "dse~Test@1", "after": "dse~Test@2", "description": "Hypothetical gap"}}
+                       "max_prompt_bytes": 10000,
+                       "examples": [{"revision": "dse~Test@1"}, {"revision": "dse~Test@2"}]}
+
         self.config_path = self.root / "config.json"
         write_json(self.config_path, self.config)
 
@@ -43,10 +47,11 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(), (self.corpus / "revisions.jsonl").read_bytes())
         plan = self.plan()
         self.assertEqual(plan, self.plan())
-        self.assertIn("An observed reply.", plan["jobs"][0]["request"]["prompt"])
-        self.assertEqual(plan["jobs"][0]["time"], "2026-06-17T01:20:00+00:00")
-        self.config["retrospective"] = False
-        self.assertNotIn("An observed reply.", self.plan()["jobs"][0]["request"]["prompt"])
+        expected = "Preserved note.\n<<<END_MESSAGE>>>\n\nAn observed reply.\n<<<END_MESSAGE>>>\n\n"
+        self.assertEqual(plan["jobs"][0]["request"]["prompt"], expected)
+        self.assertEqual(plan["jobs"][0]["request"]["stop"], [END_MESSAGE])
+        self.assertEqual(plan["jobs"][0]["request"]["prompt"], plan["jobs"][1]["request"]["prompt"])
+        self.assertNotIn("author", plan["jobs"][0])
 
     def test_null_body_is_not_a_seed(self):
         rows = copy.deepcopy(self.rows)
@@ -80,39 +85,45 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed since import"):
             self.plan()
 
-    def test_budget_and_interval_validation(self):
+    def test_budget_and_legacy_config_validation(self):
         self.config["max_output_tokens_total"] = 127
         with self.assertRaisesRegex(ValueError, "exceeds"):
             self.plan()
-        self.config["max_output_tokens_total"] = 128
-        self.config["gap"]["after"] = "dse~Test@1"
-        with self.assertRaisesRegex(ValueError, "ordered revisions"):
+        self.config["schema_version"] = 1
+        with self.assertRaisesRegex(ValueError, "version 2"):
             self.plan()
 
-    def test_gap_cannot_cross_an_observed_revision(self):
-        middle = dict(self.rows[0], rev_id="dse~Test@middle", time="2026-06-17T01:30:00Z")
-        self.source.write_text("".join(json.dumps(x) + "\n" for x in self.rows + [middle]))
-        self.corpus = self.root / "with-middle"
-        import_corpus(self.source, self.corpus, "local")
-        with self.assertRaisesRegex(ValueError, "already lies inside"):
-            self.plan()
+    def test_posts_sorted_and_no_duplicate_page_snapshots(self):
+        self.config["examples"].reverse()
+        plan = self.plan()
+        self.assertEqual([p["text"] for p in plan["posts"]], ["Preserved note.", "An observed reply."])
+        self.assertEqual(plan["posts"][1]["start"], len(self.rows[0]["body"]))
 
-    def test_future_examples_and_mixed_pages_rejected(self):
-        self.config["examples"] = ["dse~Test@2"]
-        with self.assertRaisesRegex(ValueError, "must not postdate"):
-            self.plan()
-        self.config["examples"] = []
-        self.rows[1]["page_id"] = "dse/OtherPage"
-        self.source.write_text("".join(json.dumps(x) + "\n" for x in self.rows))
-        self.corpus = self.root / "mixed"
-        import_corpus(self.source, self.corpus, "local")
-        with self.assertRaisesRegex(ValueError, "same DSE page"):
-            self.plan()
+    def test_non_append_requires_explicit_span(self):
+        rows = copy.deepcopy(self.rows)
+        rows[1]["body"] = "Revised old note.\nNew reply."
+        with self.assertRaisesRegex(ValueError, "explicit post span"):
+            extract_posts(rows, self.config["examples"])
+        self.config["examples"][1].update(start=18, end=len(rows[1]["body"]))
+        posts = extract_posts(rows, self.config["examples"])
+        self.assertEqual(posts[1]["text"], "New reply.")
+
+    def test_invalid_duplicate_and_delimiter_examples(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
+            extract_posts(self.rows, [self.config["examples"][0]] * 2)
+        rows = copy.deepcopy(self.rows)
+        rows[1]["body"] += END_MESSAGE
+        with self.assertRaisesRegex(ValueError, "delimiter-containing"):
+            extract_posts(rows, self.config["examples"])
+        with self.assertRaisesRegex(ValueError, "at least two"):
+            extract_posts(self.rows, [])
+        with self.assertRaisesRegex(ValueError, "Invalid post span"):
+            extract_posts(self.rows, [{"revision": "dse~Test@1", "start": -1, "end": 10}, self.config["examples"][1]])
 
     def test_no_overwrite_resume_and_messages_only(self):
         plan = self.plan()
         out = self.root / "run"
-        with patch("wiki_synth.cli.complete", side_effect=AssertionError("network called")):
+        with patch("wiki_synth.generation.complete", side_effect=AssertionError("network called")):
             run(plan, out, "mock")
             first = (out / "messages.jsonl").read_bytes()
             run(plan, out, "mock", resume=True)
@@ -130,12 +141,12 @@ class PipelineTests(unittest.TestCase):
         plan = self.plan()
         out = self.root / "partial"
         response = {"choices": [{"text": "One note", "finish_reason": "stop"}]}
-        with patch.dict(os.environ, {"ACS_API_KEY": "test-key"}), patch("wiki_synth.cli.complete", side_effect=[response, ProviderError("interrupted")]):
+        with patch.dict(os.environ, {"ACS_API_KEY": "test-key"}), patch("wiki_synth.generation.complete", side_effect=[response, ProviderError("interrupted")]):
             with self.assertRaises(ProviderError):
                 run(plan, out, "acs")
         self.assertTrue((out / "sample-000001.json").exists())
         self.assertFalse((out / ".running").exists())
-        with patch.dict(os.environ, {"ACS_API_KEY": "test-key"}), patch("wiki_synth.cli.complete", return_value=response) as mocked:
+        with patch.dict(os.environ, {"ACS_API_KEY": "test-key"}), patch("wiki_synth.generation.complete", return_value=response) as mocked:
             run(plan, out, "acs", resume=True)
             self.assertEqual(mocked.call_count, 1)
 
@@ -145,6 +156,23 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "ACS_API_KEY"):
                 run(self.plan(), out, "acs")
         self.assertFalse(out.exists())
+
+
+class ResultTests(unittest.TestCase):
+    def test_termination_classification_without_invented_author(self):
+        job = {"id": "test", "source_ids": ["source"], "prompt_sha256": "hash"}
+        for finish, stop, expected in [("stop", END_MESSAGE, "delimiter"),
+                                        ("length", None, "token_limit"),
+                                        ("stop", None, "unconfirmed"),
+                                        ("stop", 128001, "unconfirmed")]:
+            with self.subTest(finish=finish, stop=stop):
+                raw = {"choices": [{"text": "A complete post. -- ChosenByModel", "finish_reason": finish, "stop_reason": stop}]}
+                result = make_result(job, raw, "acs")
+                self.assertEqual(result["termination"], expected)
+                self.assertEqual(result["delimiter_reached"], expected == "delimiter")
+                self.assertEqual(result["body"], raw["choices"][0]["text"])
+                self.assertNotIn("label", result)
+                self.assertNotIn("time", result)
 
 
 class ProviderTests(unittest.TestCase):

@@ -1,12 +1,12 @@
 {
   "schema_version": 2,
-  "model": "llama-8b",
+  "model": "trinity-truebase",
   "seed": 42,
-  "samples": 3,
+  "samples": 1,
   "max_tokens": 256,
   "temperature": 0.8,
   "top_p": 0.95,
-  "max_output_tokens_total": 768,
+  "max_output_tokens_total": 256,
   "max_prompt_bytes": 24000,
   "examples": [
     {

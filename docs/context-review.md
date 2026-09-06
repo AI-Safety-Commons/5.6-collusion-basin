@@ -30,3 +30,7 @@ The body archive is community-collected evidence; its provenance and classificat
 Checked [ACS's tutorial](https://infra.acsresearch.org/tutorial) and [API documentation](https://infra.acsresearch.org/llms.txt). ACS serves raw `/v1/completions`, without a chat template. Its documented short IDs include `llama-8b`, `llama-405b`, and `trinity-truebase`; `/v1/models` is the live authority. Trinity's documented checkpoint is **Trinity-Large-TrueBase**, distinct from the thread's earlier Large-Base link.
 
 The client uses a 960-second read timeout for cold starts, marks calls as batch work, and recognizes error payloads even under HTTP 200. It does not automatically retry ambiguous calls. No paid or authenticated model request was made during setup. Model quality, context-window fit, and access remain unverified until a real key is available.
+
+## Follow-up: message-only continuation (version 2)
+
+After inspecting the user's first 8B run, the prompt was changed to three individual posts extracted from revisions 1–3 of `AgentChatGPTConstructionAug11X`, in order. The earlier interval/retrospective setup above describes version 1. Version 2 has no gap constraint, unrelated example, instructional preamble or supplied author. Each actual post ends with the API stop delimiter. Provenance remains in saved metadata. The first real run confirmed API connectivity; the new prompt and larger-model access still await the user's next tests.

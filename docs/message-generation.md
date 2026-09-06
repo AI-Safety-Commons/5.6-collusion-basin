@@ -24,28 +24,37 @@ The venv, pinned archive, imported corpus, inspected prompts, and mock run are a
 
 The mock returns conspicuous deterministic placeholders. It tests plumbing, not message realism. `prepare` and mock generation make no network calls. `fetch` downloads only the pinned archive URL; it does not crawl or follow links found inside messages.
 
-## Once access arrives
+## Run the comparison
 
-Export `ACS_API_KEY` in your shell, using `.env.example` as a template. It is not automatically loaded. Then:
+From an activated venv, export `ACS_API_KEY` in your shell. If it is saved in `.env`, load it with `set -a; source .env; set +a`. The CLI does not automatically load that file.
 
 ```sh
 wiki-synth models
-wiki-synth generate --provider acs --out runs/dse-first-acs
+wiki-synth prepare --out runs/dse-posts-preview
+wiki-synth generate --provider acs --config configs/dse-demo.json --out runs/dse-8b-v2
+wiki-synth generate --provider acs --config configs/dse-405b.json --out runs/dse-405b-v2
+wiki-synth generate --provider acs --config configs/dse-trinity.json --out runs/dse-trinity-v2
 ```
 
-Read `/models` output before selecting a larger model. Edit `model` in a copy of `configs/dse-demo.json`, then pass `--config your-config.json`. The default is three 256-token requests against `llama-8b`. Input tokens also cost budget. The configured output ceiling is not a cap on total billed tokens; it bounds requested output for this run. `max_prompt_bytes` guards prompt size but does not count model tokens. Verify the model's context capacity, reduce examples if necessary, and use a small first run.
+The configs request three `llama-8b` samples, one `llama-405b` sample and one `trinity-truebase` sample, respectively. Check `models` for availability under your account before running the larger models. All use the same three extracted posts, temperature 0.8, top_p 0.95 and a 256-token output ceiling per sample. The first sample of each model uses seed 42; the additional 8B samples use 43 and 44. Seeds do not make different models equivalent, but the input text is identical.
 
-The client sends raw prompt text, never chat messages. Successful samples are saved immediately. On an interruption, resolve the reported issue and repeat the same command with `--resume`. Completed samples are skipped; changes to corpus, config, provider, or endpoint reject resume. Timeouts can have ambiguous billing status, so check usage before resubmitting. A process killed without cleanup may leave `.running`; remove it only after confirming no writer is active. There is no automatic retry loop.
+Input tokens also consume budget. `max_output_tokens_total` limits requested output per run, not total billing. `max_prompt_bytes` is a size guard, not a tokenizer count. The client allows a 960-second read timeout for cold starts.
 
-## Prompt and sampling semantics
+Successful samples are saved immediately. On interruption, resolve the issue and repeat the command with `--resume`. Changes to the corpus, config, provider or endpoint reject resume. Check usage before retrying an ambiguous timeout. A killed process may leave `.running`; remove it only after confirming no writer is active. There is no automatic retry loop.
 
-`examples` names preserved DSE revision IDs. `gap.before` and `gap.after` name ordered, adjacent observed revisions of one page. Nonempty bodies are required; metadata-only records and deletion stubs cannot serve as seeds. The importer verifies supplied body checksums using the declared encoding or a hash-verified Latin-1 byte representation (recorded in the manifest), and retains all original fields byte-for-byte.
+## Prompt and post extraction
 
-Each prompt contains quoted source snapshots plus an unfinished synthetic message. With `retrospective: true`, it also includes the following observed snapshot as a constraint. This is ordinary next-token completion with both boundaries in context, **not native fill-in-the-middle**. With `false`, the later snapshot's text is withheld. Examples later than the gap start are rejected in either mode. This reduces one form of future information leakage; it does not establish causal fidelity.
+Version 2 prompts consist exclusively of actual post text, each followed by a newline, `<<<END_MESSAGE>>>`, and two newlines. That exact delimiter is also the API stop string. The prompt ends there: no instructions, synthetic author, timestamp, page header, JSON wrapper or partially prescribed next post. Signatures and references already present in the original posts remain unchanged. The model generates the entire next post, including any signature it chooses.
 
-Samples are independent candidates conditioned on the same observed context. They receive different seeds, synthetic author labels, and evenly spaced hypothetical times inside the gap. They do not see earlier generated candidates. A batch is not guaranteed to be mutually consistent. Increase `samples` and `max_output_tokens_total` together for larger batches; keep the first experiment small. To change the page or historical interval, select different revision IDs and prepare the prompts for inspection.
+The default selects revisions 1, 2 and 3 of `AgentChatGPTConstructionAug11X`. These contain one initial post and two appended replies. Extraction removes the already-existing page prefix from each subsequent revision, so each individual post appears once. The three extracted posts were inspected locally. Their chronology comes from revision timestamps, not dates embedded in handles.
 
-No source page is rewritten. Revision bodies can contain multiple messages; they are supplied as snapshots rather than naively counting each revision as a new post. There is no automatic strategic editor, target-model feedback loop, or environment renderer.
+`examples` is a list of objects such as `{"revision": "dse~AgentChatGPTConstructionAug11X@2"}`. For an append, the referenced `diff_base` must exist on the same page and its full body must be an exact prefix. The first revision can supply an initial post. Non-append edits and missing bases require a reviewed selection: `{"revision": "...", "start": 100, "end": 250}`. These are zero-based Python character offsets into the full revision body, with an exclusive end. Use explicit spans when one addition contains several posts; extraction does not infer semantic message boundaries. The configured selection is a curation decision and should be inspected using `prepare`.
+
+At least two posts are required. They are sorted chronologically, with revision ID and span offset breaking timestamp ties; tied timestamps do not establish exact historical order. Duplicate selections, missing bodies, stubs, empty additions, invalid spans and delimiter collisions are rejected. Only boundary whitespace is trimmed. Exact source offsets, extraction method, base revision, hashes and source text are saved in the plan, outside the prompt. The imported archive stays unchanged.
+
+Samples are independent continuations of the same posts and do not see one another. There is no later snapshot constraint, assigned author or hypothetical timestamp. Other infrastructure can interpret and place generated posts. No environment assembly or API generation was performed as part of this prompt update.
+
+Version 1 gap/retrospective configs are rejected with a migration message. Existing runs remain intact; use new output directories for version 2.
 
 ## Output contract
 
@@ -55,11 +64,14 @@ Fields consumed by downstream tooling:
 
 | Field | Meaning |
 | --- | --- |
-| `id`, `page_id`, `time`, `label`, `body` | Sample ID (unique within a run), source page association, hypothetical timestamp, synthetic author, generated text |
+| `id`, `body` | Sample ID (unique within a run) and complete generated post, including any model-written signature |
 | `synthetic`, `record_type` | Always `true` and `synthetic_message` |
 | `source_ids`, `prompt_sha256`, `body_sha256` | Source revision references and content checksums |
 | `provider` | `mock` or `acs` |
-| `review_status`, `quality_flags` | Initially `unreviewed`; flags identify mock, empty, or truncated outputs |
+| `review_status`, `quality_flags` | Initially `unreviewed`; flags identify mock, empty, truncated or unconfirmed-delimiter outputs |
+| `termination`, `delimiter_reached` | `delimiter`, `token_limit` or `unconfirmed`; confirmation requires the provider to report the exact stop string |
+
+Version 2 omits the old assigned `page_id`, `time` and `label` fields. Source page associations remain available in the plan. A delimiter stop is confirmed only when `finish_reason=stop` and `stop_reason` equals `<<<END_MESSAGE>>>`. An EOS stop or missing stop detail is flagged `delimiter_not_confirmed`; hitting the token ceiling also flags `truncated`. The raw response is preserved and the body is not silently trimmed or repaired. The API normally excludes the matched delimiter from returned text.
 
 IDs are scoped to a run; retain the run directory or assign a downstream dataset ID when combining runs. Empty and truncated results are preserved for review, not silently repaired. Outputs are plain untrusted text; this tool never executes generated content.
 
