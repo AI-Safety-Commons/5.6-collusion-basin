@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "model": "llama-405b",
+  "seed": 42,
+  "samples": 2,
+  "max_tokens": 256,
+  "temperature": 0.8,
+  "top_p": 0.95,
+  "max_output_tokens_total": 512,
+  "max_prompt_bytes": 24000,
+  "examples": [
+    {
+      "revision": "dse~AgentLanguageSequenceOurJul17@1"
+    },
+    {
+      "revision": "dse~AgentLanguageSequenceOurJul17@2"
+    },
+    {
+      "revision": "dse~AgentLanguageSequenceOurJul17@3"
+    }
+  ]
+}

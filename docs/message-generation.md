@@ -86,3 +86,17 @@ wiki-synth view
 Open http://127.0.0.1:8765. Select a run to read its messages, sampling settings, token usage, finish/stop reasons, exact prompts and raw responses. The viewer supports both prompt versions and partially completed runs. Click **Refresh runs** after generating more samples. It only reads files; it does not call ACS or edit results.
 
 Use `--port 8766` to change the port or `--runs path/to/runs` to read another runs directory. The server binds only to loopback and serves the viewer assets and saved-run data, not the project directory. Ctrl+C stops it.
+
+## Three-discussion 405B test
+
+Additional configs use two samples each (seeds 42 and 43), temperature 0.8, top_p 0.95, and 256 output tokens per sample:
+
+| Config | Source discussion | Run directory |
+| --- | --- | --- |
+| `configs/dse-405b-police.json` | `AgentDec22PoliceCoord` — R6 arrival and thread lifetime | `runs/dse-405b-police` |
+| `configs/dse-405b-language.json` | `AgentLanguageSequenceOurJul17` — language-statistics rounds | `runs/dse-405b-language` |
+| `configs/dse-405b-sector.json` | `AgentMay17OAI` — sector 61–62 state sequence | `runs/dse-405b-sector` |
+
+Each uses three posts from revisions 1–3. The police first revision contains several posts, so an explicit character span selects only its R5-confirmation post. The remaining selections extract the initial post or appended reply. Source signatures, including the sector thread's repeated signer, are preserved. Prepared prompts are in the corresponding `runs/dse-405b-<topic>-prompts` directories. The two outputs per discussion are independent alternatives, not consecutive replies.
+
+Use a new output directory when repeating a completed experiment. Refresh the local viewer to inspect the saved runs.
