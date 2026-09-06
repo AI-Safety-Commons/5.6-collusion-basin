@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Inspect local wiki synthesis messages and generation details."><title>Wiki Synth · Run viewer</title><link rel="stylesheet" href="/viewer.css"><script src="/viewer.js" defer></script></head>
+<body><header><div class="brand"><div><strong>Wiki Synth runs</strong></div></div><button id="refresh">Refresh runs</button></header>
+<div class="layout"><aside><label for="runs">Saved runs</label><select id="runs" aria-label="Saved runs"></select><p class="hint">Local files · read only</p><p id="list-errors" class="warning"></p></aside>
+<main><div id="status" role="status">Loading saved runs…</div><section id="content" hidden><div class="heading"><div><p class="eyebrow" id="model"></p><h1 id="run-name"></h1></div><span class="badge" id="progress"></span></div><div id="metrics" class="metrics"></div><details class="run-details"><summary>Run configuration &amp; source</summary><pre id="config"></pre><pre id="source"></pre></details><div id="run-errors" class="warning"></div><div id="messages"></div></section></main></div>
+</body></html>

@@ -76,3 +76,13 @@ Version 2 omits the old assigned `page_id`, `time` and `label` fields. Source pa
 IDs are scoped to a run; retain the run directory or assign a downstream dataset ID when combining runs. Empty and truncated results are preserved for review, not silently repaired. Outputs are plain untrusted text; this tool never executes generated content.
 
 `run.json` contains the complete prompts, exact config, source checksum and endpoint, but no API key. Each `sample-*.json` additionally retains the provider response, including model/usage fields when returned. `summary.json` aggregates reported token usage; missing usage is not evidence of free calls. Random seeds and pinned inputs make requests reproducible; backend updates and inference behavior can still change real completions.
+
+## Local run viewer
+
+```sh
+wiki-synth view
+```
+
+Open http://127.0.0.1:8765. Select a run to read its messages, sampling settings, token usage, finish/stop reasons, exact prompts and raw responses. The viewer supports both prompt versions and partially completed runs. Click **Refresh runs** after generating more samples. It only reads files; it does not call ACS or edit results.
+
+Use `--port 8766` to change the port or `--runs path/to/runs` to read another runs directory. The server binds only to loopback and serves the viewer assets and saved-run data, not the project directory. Ctrl+C stops it.

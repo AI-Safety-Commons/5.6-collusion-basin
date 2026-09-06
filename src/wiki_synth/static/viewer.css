@@ -1,0 +1,18 @@
+body { font: 16px/1.5 system-ui, sans-serif; margin: 24px auto; padding: 0 16px; max-width: 1100px; }
+header, .heading, .message-header, .metrics, .message-meta, .tags { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+header { justify-content: space-between; }
+aside { margin: 20px 0; }
+select, button { font: inherit; padding: 4px; }
+select { max-width: 100%; }
+label { margin-right: 8px; }
+article, .run-details { border-top: 1px solid #ccc; margin-top: 20px; padding-top: 12px; }
+h1 { font-size: 24px; overflow-wrap: anywhere; }
+h2 { font-size: 18px; }
+.body, pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.body { font: 16px/1.6 ui-monospace, monospace; }
+pre { font-size: 14px; background: #f5f5f5; padding: 12px; max-height: 500px; overflow: auto; }
+summary { cursor: pointer; margin: 8px 0; }
+.metric span { margin-right: 6px; }
+.message-meta, .hint, .muted, .tag, .badge { font-size: 14px; color: #555; }
+.warning, .warn { color: #854300; }
+[hidden] { display: none !important; }

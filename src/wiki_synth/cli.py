@@ -52,8 +52,15 @@ def main():
             p.add_argument("--provider", choices=["mock", "acs"], default="mock")
             p.add_argument("--resume", action="store_true")
     sub.add_parser("models", help="Read current ACS model IDs/capabilities (requires key)")
+    p = sub.add_parser("view", help="Read saved runs in a local browser")
+    p.add_argument("--runs", default="runs")
+    p.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     try:
+        if args.command == "view":
+            from .viewer import serve
+            serve(args.runs, args.port)
+            return 0
         if args.command == "fetch":
             result = fetch(args.lock, args.out)
         elif args.command == "import":
